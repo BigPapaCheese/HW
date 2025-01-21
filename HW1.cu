@@ -1,4 +1,4 @@
-// Name:
+// Name: Ben Williams
 // nvcc HW1.cu -o temp
 /*
  What to do:
