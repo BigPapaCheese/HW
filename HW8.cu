@@ -237,13 +237,7 @@ int main()
 	printf("\n\n");
 	
 	return(0);
-	free(A_CPU); 
-	free(B_CPU); 
-	free(C_CPU);
-	
-	cudaFree(A_GPU); 
-	cudaFree(B_GPU); 
-	cudaFree(C_GPU);
+
 }
 
 
