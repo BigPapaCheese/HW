@@ -242,7 +242,7 @@ int main()
 	int u = N/BlockSize.x;
 	for (int j=1;j<=u;j++)
 	{
-		C_CPU[0] +=C_CPU[0+j];
+		C_CPU[0] +=C_CPU[j];
 	}
 
 	DotGPU = C_CPU[0]; // C_GPU was copied into C_CPU.
