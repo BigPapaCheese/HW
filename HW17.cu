@@ -23,7 +23,7 @@
 #define XWindowSize 1000
 #define YWindowSize 1000
 #define STOP_TIME 10000.0
-#define DT        0.0001
+#define DT        0.00001
 #define GRAVITY 0.1 
 #define MASS 10.0  	
 #define DIAMETER 1.0
@@ -33,7 +33,7 @@
 #define DRAW 100
 #define LENGTH_OF_BOX 6.0
 #define MAX_VELOCITY 5.0
-#define NUMBER_OF_SPHERES 5
+#define NUMBER_OF_SPHERES 20
 
 // Globals
 const float XMax = (LENGTH_OF_BOX/2.0);
@@ -69,7 +69,7 @@ void set_initail_conditions()
 { 
 	time_t t;
 	srand((unsigned) time(&t));
-	int yeahBuddy = 1;
+	int yeahBuddy = 0;
 	float dx, dy, dz, seperation;
 
     px[0] = (LENGTH_OF_BOX - DIAMETER)*rand()/RAND_MAX - (LENGTH_OF_BOX - DIAMETER)/2.0;
@@ -77,25 +77,30 @@ void set_initail_conditions()
 	pz[0] = (LENGTH_OF_BOX - DIAMETER)*rand()/RAND_MAX - (LENGTH_OF_BOX - DIAMETER)/2.0;
     while (yeahBuddy == 0)
     {
+		yeahBuddy =1;
         for(int m = 1;m<NUMBER_OF_SPHERES;m++)
         {
             px[m] = (LENGTH_OF_BOX - DIAMETER)*rand()/RAND_MAX - (LENGTH_OF_BOX - DIAMETER)/2.0;
 	        py[m] = (LENGTH_OF_BOX - DIAMETER)*rand()/RAND_MAX - (LENGTH_OF_BOX - DIAMETER)/2.0;
 	        pz[m] = (LENGTH_OF_BOX - DIAMETER)*rand()/RAND_MAX - (LENGTH_OF_BOX - DIAMETER)/2.0;
         }
-        for(int i = NUMBER_OF_SPHERES;i>0;i--)
+        for(int i = NUMBER_OF_SPHERES -1 ; i>0 ;i--)
         {
-            for(int j=0;j<i,j++)
+            for(int j=0;j<i;j++)
             {
             dx = px[i] - px[j];
             dy = py[i] - py[j];
             dz = pz[i] - pz[j];
             seperation = sqrt(dx*dx + dy*dy + dz*dz);
-            if(seperation < DIAMETER) yeahBuddy = 0;
-            }
+            if(seperation < DIAMETER) 
+			{
+				yeahBuddy = 0;
+			}
+			}
         }
     
 }
+	printf("%f %f %f %f", px[0], px[1], px[2] ,px[3]);
     for (int v = 0;v<NUMBER_OF_SPHERES;v++)
     {
 	vx[v] = 2.0*MAX_VELOCITY*rand()/RAND_MAX - MAX_VELOCITY;
@@ -152,19 +157,16 @@ void draw_picture()
 	
 	Drawwirebox();
 	
-	glColor3d(1.0,0.5,1.0);
+    for(int i=0;i<NUMBER_OF_SPHERES;i++)
+    {
+    glColor3d(1.0,0.2*i,1.0);
 	glPushMatrix();
-	glTranslatef(px1, py1, pz1);
+	glTranslatef(px[i], py[i], pz[i]);
 	glutSolidSphere(radius,20,20);
 	glPopMatrix();
-	
-	glColor3d(0.0,0.5,0.0);
-	glPushMatrix();
-	glTranslatef(px2, py2, pz2);
-	glutSolidSphere(radius,20,20);
-	glPopMatrix();
-	
-	glutSwapBuffers();
+    
+    }
+    glutSwapBuffers();
 }
 
 void keep_in_box()
@@ -177,7 +179,7 @@ void keep_in_box()
 		px[i] = 2.0*halfBoxLength - px[i];
 		vx[i] = - vx[i];
 	}
-	else if(px1 < -halfBoxLength)
+	else if(px[i] < -halfBoxLength)
 	{
 		px[i] = -2.0*halfBoxLength - px[i];
 		vx[i] = - vx[i];
@@ -194,12 +196,12 @@ void keep_in_box()
 		vy[i] = - vy[i];
 	}
 			
-	if(pz1 > halfBoxLength)
+	if(pz[i] > halfBoxLength)
 	{
 		pz[i] = 2.0*halfBoxLength - pz[i];
 		vz[i] = - vz[i];
 	}
-	else if(pz1 < -halfBoxLength)
+	else if(pz[i] < -halfBoxLength)
 	{
 		pz[i] = -2.0*halfBoxLength - pz[i];
 		vz[i] = - vz[i];
@@ -208,23 +210,41 @@ void keep_in_box()
 }
 
 void get_forces()
-{
+{	
+	for (int i = 0; i < NUMBER_OF_SPHERES; i++) {
+		fx[i] = 0.0;
+		fy[i] = 0.0;
+		fz[i] = 0.0;
+	}
 	float dx,dy,dz,r,r2,dvx,dvy,dvz,forceMag,inout;
+    float tfx[NUMBER_OF_SPHERES][NUMBER_OF_SPHERES];
+    float tfy[NUMBER_OF_SPHERES][NUMBER_OF_SPHERES];
+    float tfz[NUMBER_OF_SPHERES][NUMBER_OF_SPHERES];
+	for (int i = 0; i < NUMBER_OF_SPHERES; i++) {
+		for (int j = 0; j < NUMBER_OF_SPHERES; j++) {
+			tfx[i][j] = 0.0;
+			tfy[i][j] = 0.0;
+			tfz[i][j] = 0.0;
+		}
+	}
 	
-	dx = px2 - px1;
-	dy = py2 - py1;
-	dz = pz2 - pz1;
-				
-	r2 = dx*dx + dy*dy + dz*dz;
+for(int i = 0;i<NUMBER_OF_SPHERES;i++)
+{
+    for(int j = i; j<NUMBER_OF_SPHERES;j++)
+    {
+        dx = px[j]-px[i];
+        dy = py[j]-py[i];
+        dz = pz[j]-pz[i];
+        r2 = dx*dx + dy*dy + dz*dz;
 	r = sqrt(r2);
-
-	forceMag =  mass1*mass2*GRAVITY/r2;
+	forceMag =  MASS*MASS*GRAVITY/r2;
 			
 	if (r < DIAMETER)
 	{
-		dvx = vx2 - vx1;
-		dvy = vy2 - vy1;
-		dvz = vz2 - vz1;
+		dvx = vx[j] - vx[i];
+		dvy = vy[j] - vy[i];
+		dvz = vz[j] - vz[i];
+		
 		inout = dx*dvx + dy*dvy + dz*dvz;
 		if(inout <= 0.0)
 		{
@@ -232,54 +252,63 @@ void get_forces()
 		}
 		else
 		{
-			forceMag +=  PUSH_BACK_REDUCTION*SPHERE_PUSH_BACK_STRENGTH*(r - DIAMETER);
+			forceMag += PUSH_BACK_REDUCTION*SPHERE_PUSH_BACK_STRENGTH*(r - DIAMETER);
 		}
 	}
+	if(i==j)
+	{
+		tfx[i][j] =0;
+		tfy[i][j] =0;
+		tfz[i][j] =0;
+	}
+	else { 
+	tfx[i][j] = -forceMag*dx/r;
+	tfy[i][j] = -forceMag*dy/r;
+	tfz[i][j] = -forceMag*dz/r;
+	tfx[j][i] = -tfx[i][j]; // Symmetric forces
+	tfy[j][i] = -tfy[i][j];
+	tfz[j][i] = -tfz[i][j];
 
-	fx1 = forceMag*dx/r;
-	fy1 = forceMag*dy/r;
-	fz1 = forceMag*dz/r;
-	fx2 = -forceMag*dx/r;
-	fy2 = -forceMag*dy/r;
-	fz2 = -forceMag*dz/r;
+	}
+    }
 }
-for(int i = 0;i<NUMBER_OF_SPHERES;i++)
+for (int k = 0;k<NUMBER_OF_SPHERES;k++)
 {
-    
+for (int l = 0;l<NUMBER_OF_SPHERES;l++)
+{
+    fx[k] += tfx[l][k];
+    fy[k] += tfy[l][k];
+    fz[k] += tfz[l][k];
 }
+
+}
+}
+
 
 void move_bodies(float time)
 {
-	if(time == 0.0)
+    for (int i = 0; i<NUMBER_OF_SPHERES;i++)
+    {
+        if(time == 0.0)
 	{
-		vx1 += 0.5*DT*(fx1 - DAMP*vx1)/mass1;
-		vy1 += 0.5*DT*(fy1 - DAMP*vy1)/mass1;
-		vz1 += 0.5*DT*(fz1 - DAMP*vz1)/mass1;
+		vx[i] += 0.5*DT*(fx[i] - DAMP*vx[i])/MASS;
+		vy[i] += 0.5*DT*(fy[i] - DAMP*vy[i])/MASS;
+		vz[i] += 0.5*DT*(fz[i] - DAMP*vz[i])/MASS;
 		
-		vx2 += 0.5*DT*(fx2 - DAMP*vx2)/mass2;
-		vy2 += 0.5*DT*(fy2 - DAMP*vy2)/mass2;
-		vz2 += 0.5*DT*(fz2 - DAMP*vz2)/mass2;
 	}
 	else
 	{
-		vx1 += DT*(fx1 - DAMP*vx1)/mass1;
-		vy1 += DT*(fy1 - DAMP*vy1)/mass1;
-		vz1 += DT*(fz1 - DAMP*vz1)/mass1;
-		
-		vx2 += DT*(fx2 - DAMP*vx2)/mass2;
-		vy2 += DT*(fy2 - DAMP*vy2)/mass2;
-		vz2 += DT*(fz2 - DAMP*vz2)/mass2;
+		vx[i] += DT*(fx[i] - DAMP*vx[i])/MASS;
+		vy[i] += DT*(fy[i] - DAMP*vy[i])/MASS;
+		vz[i] += DT*(fz[i] - DAMP*vz[i])/MASS;
 	}
 
-	px1 += DT*vx1;
-	py1 += DT*vy1;
-	pz1 += DT*vz1;
-	
-	px2 += DT*vx2;
-	py2 += DT*vy2;
-	pz2 += DT*vz2;
+	px[i] += DT*vx[i];
+	py[i] += DT*vy[i];
+	pz[i] += DT*vz[i];
 	
 	keep_in_box();
+    }
 }
 
 void nbody()
@@ -367,4 +396,3 @@ int main(int argc, char** argv)
 	glutMainLoop();
 	return 0;
 }
-
