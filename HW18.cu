@@ -1,4 +1,4 @@
-// Name: 
+// Name: Ben Williams
 // Creating a GPU nBody simulation from an nBody CPU simulation. 
 // nvcc HW18.cu -o temp -lglut -lm -lGLU -lGL
 
