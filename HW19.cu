@@ -297,7 +297,7 @@ void nBody()
             
 		}
 		if(c==700){
-         printf("Loading %f/%d\n", t, d);
+         printf("%f/%d\n", t, d);
          c=0;
         }
         else{
