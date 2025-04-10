@@ -215,7 +215,7 @@ int main()
 	printf(" You have %d GPUs in this machine\n", count);
     if(count < 2)
     {
-        printf("Unlike Women, having more than one GPU is a good thing\n");
+        printf("Your GPU is lonely. Bring it some company\n");
        exit(0); 
     }
     if(N%2==0)
