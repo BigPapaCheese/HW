@@ -1,4 +1,4 @@
-// Name:
+// Name:Ben Williams
 // nBody run on all available GPUs. 
 // nvcc HW25.cu -o temp -lglut -lm -lGLU -lGL
 
@@ -40,10 +40,7 @@ int HalfN; // Half the vector size
 int NumberOfGpus;
 float3 *P, *V, *F;
 float *M; 
-float3 *PGPU0, *VGPU0, *FGPU0;
-float *MGPU0;
 float3 **PG, **VG, **FG;
-float3 *PGPU1, *VGPU1, *FGPU1;
 float **MG;
 float GlobeRadius, Diameter, Radius;
 float Damp;
@@ -111,7 +108,7 @@ void setup()
     	float d, dx, dy, dz;
     	int test;
 	
-	N = 101;
+	N = 1010;
 	
 	cudaGetDeviceCount(&C);
 	
@@ -219,7 +216,7 @@ void setup()
 	}
 	
 	
-	for(int j = 0;j<C-1;j++)
+	for(int j = 0;j<C;j++)
     {
     cudaSetDevice(j);
     cudaErrorCheck(__FILE__, __LINE__);
@@ -232,19 +229,7 @@ void setup()
 	cudaMemcpyAsync(MG[j], M, N*sizeof(float), cudaMemcpyHostToDevice);
 	cudaErrorCheck(__FILE__, __LINE__);
     }
-    if (C>1)
-    {
-    cudaSetDevice(C-1);
-    cudaErrorCheck(__FILE__, __LINE__);
-    cudaMemcpyAsync(PG[C-1], P, N*sizeof(float3), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-	cudaMemcpyAsync(VG[C-1], V, N*sizeof(float3), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-	cudaMemcpyAsync(FG[C-1], F, N*sizeof(float3), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-	cudaMemcpyAsync(MG[C-1], M, N*sizeof(float), cudaMemcpyHostToDevice);
-	cudaErrorCheck(__FILE__, __LINE__);
-    }
+    
 	
 		
 	printf("\n Setup finished.\n");
@@ -284,13 +269,13 @@ __global__ void getForces(float3 *p, float3 *v, float3 *f, float *m, float g, fl
 	}
 }
 
-__global__ void moveBodies(float3 *p, float3 *v, float3 *f, float *m, float damp, float dt, float t, int halfN, int n, int device, int nn)
+__global__ void moveBodies(float3 *p, float3 *v, float3 *f, float *m, float damp, float dt, float t, int myN, int n, int device, int nn)
 {
     int offset = device*nn;
 	
 	int i = threadIdx.x + blockDim.x*blockIdx.x;
 	
-	if(i < n)
+	if(i < myN)
 	{
         i+=offset;
 		if(t == 0.0f)
@@ -323,9 +308,9 @@ void nBody()
     {
         while(t < RUN_TIME)
 	{
-        getForces<<<GridSize,BlockSize>>>(PGPU0, VGPU0, FGPU0, MGPU0, G, H, HalfN, N, 0, NN);
+		getForces<<<GridSize,BlockSize>>>(PG[0], VG[0], FG[0], MG[0], G, H, NN, N, 0, NN);
 		cudaErrorCheck(__FILE__, __LINE__);
-		moveBodies<<<GridSize,BlockSize>>>(PGPU0, VGPU0, FGPU0, MGPU0, Damp, dt, t, HalfN, N, 0, NN);
+		moveBodies<<<GridSize,BlockSize>>>(PG[0], VG[0], FG[0], MG[0], Damp, dt, t, NN, N, 0, NN);
 		cudaErrorCheck(__FILE__, __LINE__);
         cudaDeviceSynchronize();
         if(drawCount == DRAW_RATE) 
@@ -356,7 +341,7 @@ void nBody()
 		moveBodies<<<GridSizeS,BlockSize>>>(PG[C-1], VG[C-1], FG[C-1], MG[C-1], Damp, dt, t, NS, N, C-1, NN);
 		cudaErrorCheck(__FILE__, __LINE__);
     
-        //sync();
+        sync();
         for (int i = 0; i<C;i++)//giver
         {
             offset = i*NN;
@@ -372,6 +357,7 @@ void nBody()
                 }
             }
         }
+        sync();
 
 		if(drawCount == DRAW_RATE) 
 		{	
