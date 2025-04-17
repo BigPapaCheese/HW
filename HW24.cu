@@ -326,6 +326,15 @@ void free()
 }
 int main(int argc, char** argv)
 {
+	int count;
+	cudaGetDeviceCount(&count);
+	cudaErrorCheck(__FILE__, __LINE__);
+	printf(" You have %d GPUs in this machine\n", count);
+    if(count < 2)
+    {
+        printf("Your GPU is lonely. Bring it some company\n");
+       exit(0); 
+    }
 	setup();
 	
 	int XWindowSize = 1000;
