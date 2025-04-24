@@ -1,4 +1,4 @@
-// Name:
+// Name: Ben Williams
 // nBody run on all available GPUs. 
 // nvcc HW26.cu -o temp -lglut -lm -lGLU -lGL
 
@@ -81,16 +81,7 @@ void drawPicture()
 	}
 	
 	glutSwapBuffers();
-    // prefetching
-    for(int i = 0; i<NumberOfGpus; i++)
-    {
-                    cudaSetDevice(i);
-                    cudaMemPrefetchAsync(P , N * sizeof(float3),i);
-                    cudaMemPrefetchAsync(V , N * sizeof(float3), i);
-                   cudaMemPrefetchAsync(F , N * sizeof(float3), i);
-                   cudaMemPrefetchAsync(M , N * sizeof(float) , i);
-                   cudaErrorCheck(__FILE__, __LINE__);
-    }
+    
     
 }
 
@@ -201,17 +192,18 @@ cudaErrorCheck(__FILE__, __LINE__);
 printf("Setup complete.\n");
 	
 }
-
+//getForces<<<GridSize, BlockSize>>>(P,      V,          F,     M,          G,      H,      localN,     offset,     N);
 __global__ void getForces(float3 *p, float3 *v, float3 *f, float *m, float g, float h, int nPerGPU, int n, int device)
 {
 	float dx, dy, dz,d,d2;
 	float force_mag;
 	
 	int offset = nPerGPU*device;
-	int i = threadIdx.x + blockDim.x*blockIdx.x + offset;
+	int i = threadIdx.x + blockDim.x*blockIdx.x;
 	
-	if(i < n)
+	if(i < nPerGPU)
 	{
+        i+= offset;
 		f[i].x = 0.0f;
 		f[i].y = 0.0f;
 		f[i].z = 0.0f;
@@ -238,10 +230,11 @@ __global__ void getForces(float3 *p, float3 *v, float3 *f, float *m, float g, fl
 __global__ void moveBodies(float3 *p, float3 *v, float3 *f, float *m, float damp, float dt, float t, int nPerGPU, int n, int device)
 {
 	int offset = nPerGPU*device;	
-	int i = threadIdx.x + blockDim.x*blockIdx.x + offset;
+	int i = threadIdx.x + blockDim.x*blockIdx.x;
 	
-	if(i < n)
+	if(i < nPerGPU)
 	{
+        i += offset;
 		if(t == 0.0f)
 		{
 			v[i].x += ((f[i].x-damp*v[i].x)/m[i])*dt/2.0f;
@@ -264,37 +257,52 @@ __global__ void moveBodies(float3 *p, float3 *v, float3 *f, float *m, float damp
 void nBody()
 {
 	int    drawCount = 0; 
+	int canAccessManaged;
 	float  t = 0.0;
 	float dt = 0.0001;
-	
+	for(int j = 0; j < NumberOfGpus; j++)
+	{
+		canAccessManaged = 1;
+                cudaDeviceGetAttribute(&canAccessManaged,cudaDevAttrConcurrentManagedAccess,j);
+					if (!canAccessManaged)
+    {
+        printf("At least one Device does not support managed memory.\n");
+    }
+	}
 	printf("\n Simulation is running with %d bodies.\n", N);
-	
 	while(t < RUN_TIME)
 	{
 		// Adjusting bodies
 		for(int i = 0; i < NumberOfGpus; i++)
     		{
-                    cudaErrorCheck(__FILE__, __LINE__);
+                if (i >= NumberOfGpus) // Ensure the device index is valid
+            {
+                printf("Invalid device index: %d\n", i);
+                continue;
+            }
+   // printf("Setting device %d\n", i);
                     cudaSetDevice(i);
                     cudaErrorCheck(__FILE__, __LINE__);
                     int offset = i * NPerGPU;
                     int localN = min(NPerGPU, N - offset);
-                    
-                    // prefetching
-                    cudaMemPrefetchAsync(P , N * sizeof(float3),i);
-                    cudaMemPrefetchAsync(V , N * sizeof(float3), i);
-                   cudaMemPrefetchAsync(F , N * sizeof(float3), i);
-                   cudaMemPrefetchAsync(M , N * sizeof(float) , i);
-                   cudaErrorCheck(__FILE__, __LINE__);
+                canAccessManaged = 1;
+                cudaDeviceGetAttribute(&canAccessManaged,cudaDevAttrConcurrentManagedAccess,i);
+                //pre-fetching if its allowed by the hardware
+                if (canAccessManaged) {
+                    cudaMemPrefetchAsync(P, N*sizeof(float3), i);
+                    cudaMemPrefetchAsync(V, N*sizeof(float3), i);
+                    cudaMemPrefetchAsync(F, N*sizeof(float3), i);
+                    cudaMemPrefetchAsync(M, N*sizeof(float),  i);
+                }
                     // launch on unified-memory pointers
                     getForces<<<GridSize, BlockSize>>>(P, V, F, M,
                                                        G, H,
-                                                       localN, offset, N);
+                                                       localN, N, i);
                     cudaErrorCheck(__FILE__, __LINE__);
         
                     moveBodies<<<GridSize, BlockSize>>>(P, V, F, M,
                                                          Damp, dt, t,
-                                                         localN, offset, N);
+                                                         localN, N, i);
                     cudaErrorCheck(__FILE__, __LINE__);
                 
 		}
